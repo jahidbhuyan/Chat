@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>P2P Chat</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-bottom: 10px; }
+        #message { width: 80%; padding: 5px; }
+        button { padding: 5px 10px; }
+    </style>
+</head>
+<body>
+    <h1>Peer-to-Peer Chat</h1>
+    <div id="chat"></div>
+    <input type="text" id="message" placeholder="Type your message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        let peer = null;
+        let conn = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        const peerId = urlParams.get('peer');
+
+        // Initialize Peer
+        function initialize() {
+            if (peerId) {
+                connectToPeer(peerId);
+            } else {
+                peer = new Peer();
+                setupPeerHandlers(peer);
+            }
+        }
+
+        // Set up peer connection handlers
+        function setupPeerHandlers(peer) {
+            peer.on('open', (id) => {
+                const link = `${window.location.href}?peer=${id}`;
+                window.history.replaceState({}, document.title, `?peer=${id}`);
+                addMessage(`Share this link to start chatting: ${link}`);
+            });
+
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupConnectionHandlers(conn);
+                addMessage('Connected!');
+            });
+        }
+
+        // Connect to existing peer
+        function connectToPeer(peerId) {
+            peer = new Peer();
+            setupPeerHandlers(peer);
+            
+            peer.on('open', () => {
+                conn = peer.connect(peerId);
+                setupConnectionHandlers(conn);
+            });
+        }
+
+        // Set up data channel handlers
+        function setupConnectionHandlers(connection) {
+            connection.on('open', () => {
+                addMessage('Connected! Start chatting...');
+            });
+
+            connection.on('data', (data) => {
+                addMessage(`Peer: ${data}`);
+            });
+
+            connection.on('close', () => {
+                addMessage('Connection closed');
+            });
+        }
+
+        // Send message
+        function sendMessage() {
+            const message = document.getElementById('message').value;
+            if (message && conn) {
+                conn.send(message);
+                addMessage(`You: ${message}`);
+                document.getElementById('message').value = '';
+            }
+        }
+
+        // Add message to chat window
+        function addMessage(message) {
+            const chat = document.getElementById('chat');
+            const div = document.createElement('div');
+            div.textContent = message;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // Initialize when page loads
+        window.onload = initialize;
+    </script>
+</body>
+</html>
